@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { supabase } from '../lib/supabaseClient'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 export default function Home() {
   const [freeTerm, setFreeTerm] = useState('')
