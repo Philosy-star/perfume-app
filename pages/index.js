@@ -6,6 +6,9 @@ export default function Home() {
   const [freeTerm, setFreeTerm] = useState('')
   const [brandTerm, setBrandTerm] = useState('')
   const [noteTerm, setNoteTerm] = useState('')
+  const [selectedSeasons, setSelectedSeasons] = useState([])
+  const [selectedGenders, setSelectedGenders] = useState([])
+  const [selectedImpression, setSelectedImpression] = useState('')
   const [perfumes, setPerfumes] = useState([])
   const [message, setMessage] = useState('')
 
@@ -44,11 +47,36 @@ export default function Home() {
     }
 
     const { data, error } = await query
-    handleResult(data, error, noteTerm)
+    handleResult(data, error)
   }
 
-  // 結果処理
-  function handleResult(data, error, noteTerm = '') {
+  // シーン検索
+  async function handleSceneSearch() {
+    let query = supabase.from('perfumes').select('*')
+
+    if (selectedSeasons.length > 0) {
+      query = query.in('season', selectedSeasons)
+    }
+    if (selectedGenders.length > 0) {
+      query = query.in('gender', selectedGenders)
+    }
+    if (selectedImpression) {
+      query = query.ilike('impression', `%${selectedImpression}%`)
+    }
+
+    const { data, error } = await query
+    handleResult(data, error)
+  }
+
+  function handleCheckboxChange(value, list, setList) {
+    if (list.includes(value)) {
+      setList(list.filter((item) => item !== value))
+    } else {
+      setList([...list, value])
+    }
+  }
+
+  function handleResult(data, error) {
     if (error) {
       console.error(error)
       setMessage('エラーが発生しました')
@@ -57,18 +85,6 @@ export default function Home() {
       setMessage('該当する香水が見つかりません')
       setPerfumes([])
     } else {
-      // noteのどこにヒットしたかチェック
-      if (noteTerm) {
-        data = data.map((perfume) => {
-          let hitNotes = []
-          for (let i = 1; i <= 5; i++) {
-            if (perfume[`top_note${i}`]?.includes(noteTerm)) hitNotes.push('top')
-            if (perfume[`middle_note${i}`]?.includes(noteTerm)) hitNotes.push('middle')
-            if (perfume[`base_note${i}`]?.includes(noteTerm)) hitNotes.push('base')
-          }
-          return { ...perfume, hitNotes: [...new Set(hitNotes)] }
-        })
-      }
       setMessage('')
       setPerfumes(data)
     }
@@ -78,6 +94,7 @@ export default function Home() {
     <div style={{ padding: '20px' }}>
       <h1>Perfume Search</h1>
 
+      {/* フリー検索 */}
       <div>
         <input
           type="text"
@@ -91,6 +108,7 @@ export default function Home() {
         </button>
       </div>
 
+      {/* 詳細検索 */}
       <div style={{ marginTop: '20px' }}>
         <input
           type="text"
@@ -111,16 +129,64 @@ export default function Home() {
         </button>
       </div>
 
-      {message && <p>{message}</p>}
+      {/* シーン検索 */}
+      <div style={{ marginTop: '20px' }}>
+        <div>
+          <label>季節:</label>
+          {['春', '夏', '秋', '冬'].map((season) => (
+            <label key={season} style={{ marginLeft: '10px' }}>
+              <input
+                type="checkbox"
+                checked={selectedSeasons.includes(season)}
+                onChange={() => handleCheckboxChange(season, selectedSeasons, setSelectedSeasons)}
+              />
+              {season}
+            </label>
+          ))}
+        </div>
 
+        <div style={{ marginTop: '10px' }}>
+          <label>性別:</label>
+          {['メンズ', 'レディース', 'ユニセックス'].map((gender) => (
+            <label key={gender} style={{ marginLeft: '10px' }}>
+              <input
+                type="checkbox"
+                checked={selectedGenders.includes(gender)}
+                onChange={() => handleCheckboxChange(gender, selectedGenders, setSelectedGenders)}
+              />
+              {gender}
+            </label>
+          ))}
+        </div>
+
+        <div style={{ marginTop: '10px' }}>
+          <label>香りの印象:</label>
+          <select
+            value={selectedImpression}
+            onChange={(e) => setSelectedImpression(e.target.value)}
+            style={{ padding: '5px', marginLeft: '10px' }}
+          >
+            <option value="">選択してください</option>
+            {['ムスク', 'フローラル', 'ウッディ', 'スパイシー', 'バニラ'].map((imp) => (
+              <option key={imp} value={imp}>
+                {imp}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button onClick={handleSceneSearch} style={{ padding: '8px 12px', marginTop: '10px' }}>
+          シーン検索
+        </button>
+      </div>
+
+      {/* 検索結果 */}
+      {message && <p>{message}</p>}
       <ul style={{ marginTop: '20px' }}>
         {perfumes.map((perfume) => (
           <li key={perfume.id}>
             <Link href={`/perfume/${perfume.id}`}>
               <strong>{perfume.perfume_name}</strong> - {perfume.brand}
-              {perfume.hitNotes && perfume.hitNotes.length > 0 && (
-                <span>（ヒット: {perfume.hitNotes.join(', ')}）</span>
-              )}
             </Link>
           </li>
         ))}
